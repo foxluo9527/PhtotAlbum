@@ -58,7 +58,7 @@ public class EditActivity extends AppCompatActivity {
     int groupPosition;
     int photoPosition;
     boolean deleted = false;
-
+    private static Context context;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,6 +69,7 @@ public class EditActivity extends AppCompatActivity {
             window.setStatusBarColor(getResources().getColor(R.color.white));
         }
         setContentView(R.layout.activity_edit);
+        context=this;
         choice = findViewById(R.id.choice);
         all_choice = findViewById(R.id.all_choice);
         gone = findViewById(R.id.gone);
@@ -272,6 +273,7 @@ public class EditActivity extends AppCompatActivity {
                         Toast.makeText(context, "加入相册" + photoGroupBeans.get(photoPosition).getName() + "成功!"
                                 , Toast.LENGTH_SHORT).show();
                         popupWindow.dismiss();
+                        ((AppCompatActivity) context).finish();
                     }
                 }.execute();
             }
@@ -299,6 +301,7 @@ public class EditActivity extends AppCompatActivity {
                             protected void onPostExecute(Void aVoid) {
                                 Toast.makeText(context, "加入相册成功!", Toast.LENGTH_SHORT).show();
                                 popupWindow.dismiss();
+                                ((AppCompatActivity) context).finish();
                             }
                         }.execute();
                     }
@@ -394,6 +397,7 @@ public class EditActivity extends AppCompatActivity {
                         @Override
                         protected void onPostExecute(ArrayList<PhotoGroupBean> photoGroupBeans) {
                             if (num > 0) {
+                                setResult(10002);
                                 addToGroups(EditActivity.this, photoGroupBeans, groupFirstPhotos, insertPhotos);
                             }
                         }

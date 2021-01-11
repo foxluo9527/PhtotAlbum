@@ -72,7 +72,8 @@ public class YunPhotosActivity extends AppCompatActivity {
     private PhotoGroupsAdapter adapter;
     private StaggeredGridLayoutManager staggeredGridLayoutManager;
     private ProgressBar progressBar;
-    boolean onUpload=false;
+    boolean onUpload = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,7 +86,7 @@ public class YunPhotosActivity extends AppCompatActivity {
         setContentView(R.layout.activity_yun_photos);
         name = findViewById(R.id.textView);
         recyclerView = findViewById(R.id.groups);
-        progressBar=findViewById(R.id.progressBar);
+        progressBar = findViewById(R.id.progressBar);
         groupId = getIntent().getIntExtra("groupId", 1);
         name.setText(getIntent().getStringExtra("name"));
         if (groupId == 1) {
@@ -160,111 +161,119 @@ public class YunPhotosActivity extends AppCompatActivity {
         mMainRefresh.setRefreshing(true);
         getData();
     }
-    Handler handler1=new Handler(){
+
+    Handler handler1 = new Handler() {
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
             progressBar.setVisibility(View.GONE);
-            onUpload=false;
-            if (msg.what==0){
+            onUpload = false;
+            if (msg.what == 0) {
                 Toast.makeText(YunPhotosActivity.this, "上传失败", Toast.LENGTH_SHORT).show();
-            }else {
+            } else {
                 mMainRefresh.setRefreshing(true);
                 request(0);
                 Toast.makeText(YunPhotosActivity.this, "上传成功", Toast.LENGTH_SHORT).show();
             }
         }
     };
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        switch (requestCode) {
-            case 10002:
+        if (resultCode == 10002) {
+            mMainRefresh.setRefreshing(true);
+            if (!onlineGroups)
                 getData();
-                break;
-            case 10003:
-                if (data == null) {
-                    return;
-                }
-                Uri uri = data.getData();
-                File file = new File(Environment.getExternalStorageDirectory() + "/Photos/uploadTemp/");
-                if (!file.exists()) {
-                    file.mkdirs();
-                }
-                file = new File(Environment.getExternalStorageDirectory() + "/Photos/uploadTemp/temp.jpg");
-                if (file.exists()) {    //如果目标文件已经存在
-                    file.delete();    //则删除旧文件
-                } else {
-                    try {
-                        file.createNewFile();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-                UCrop.of(uri, Uri.fromFile(file))
-                        .start(this);
-                break;
-            case UCrop.REQUEST_CROP:
-                if (resultCode == RESULT_OK) {
-                    File tempFile = new File(Environment.getExternalStorageDirectory() + "/Photos/uploadTemp/temp.jpg");
-                    if (!tempFile.exists()){
-                        Toast.makeText(this, "读取文件失败", Toast.LENGTH_SHORT).show();
-                        handler1.sendEmptyMessage(0);
+            else {
+                requestPhotos.clear();
+                request(0);
+            }
+        } else
+            switch (requestCode) {
+                case 10003:
+                    if (data == null) {
                         return;
                     }
-                    progressBar.setVisibility(View.VISIBLE);
-                    onUpload=true;
-                    new AsyncTask<Void, Void, Void>() {
-                        @Override
-                        protected Void doInBackground(Void... voids) {
-                            RequestBody fileBody = RequestBody.create(MediaType.parse("*/*"), tempFile);
-                            RequestBody requestBody = new MultipartBody.Builder()
-                                    .setType(MultipartBody.FORM)
-                                    .addFormDataPart("name","&nbsp")
-                                    .addFormDataPart("file",UUID.randomUUID().toString()+".png",fileBody)
-                                    .build();
-                            okhttp3.Request request = new okhttp3.Request.Builder()
-                                    .url("http://www.foxluo.cn/alumni_club-1.0/sql/photo/add")
-                                    .post(requestBody)
-                                    .build();
-                            Call call = new OkHttpClient().newCall(request);
-                            call.enqueue(new Callback() {
-                                @Override
-                                public void onFailure(Call call, IOException e) {
-                                    Log.e("TAG", e.getMessage());
-                                    handler1.sendEmptyMessage(0);
-                                }
-
-                                @Override
-                                public void onResponse(Call call, okhttp3.Response response) throws IOException {
-                                    String body=response.body().string();
-                                    Log.i("TAG",body);
-                                    JSONObject result= JSON.parseObject(body);
-                                    if (result.getInteger("code")==200){
-                                        handler1.sendEmptyMessage(1);
-                                    }else {
+                    Uri uri = data.getData();
+                    File file = new File(Environment.getExternalStorageDirectory() + "/Photos/uploadTemp/");
+                    if (!file.exists()) {
+                        file.mkdirs();
+                    }
+                    file = new File(Environment.getExternalStorageDirectory() + "/Photos/uploadTemp/temp.jpg");
+                    if (file.exists()) {    //如果目标文件已经存在
+                        file.delete();    //则删除旧文件
+                    } else {
+                        try {
+                            file.createNewFile();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    UCrop.of(uri, Uri.fromFile(file))
+                            .start(this);
+                    break;
+                case UCrop.REQUEST_CROP:
+                    if (resultCode == RESULT_OK) {
+                        File tempFile = new File(Environment.getExternalStorageDirectory() + "/Photos/uploadTemp/temp.jpg");
+                        if (!tempFile.exists()) {
+                            Toast.makeText(this, "读取文件失败", Toast.LENGTH_SHORT).show();
+                            handler1.sendEmptyMessage(0);
+                            return;
+                        }
+                        progressBar.setVisibility(View.VISIBLE);
+                        onUpload = true;
+                        new AsyncTask<Void, Void, Void>() {
+                            @Override
+                            protected Void doInBackground(Void... voids) {
+                                RequestBody fileBody = RequestBody.create(MediaType.parse("*/*"), tempFile);
+                                RequestBody requestBody = new MultipartBody.Builder()
+                                        .setType(MultipartBody.FORM)
+                                        .addFormDataPart("name", "&nbsp")
+                                        .addFormDataPart("file", UUID.randomUUID().toString() + ".png", fileBody)
+                                        .build();
+                                okhttp3.Request request = new okhttp3.Request.Builder()
+                                        .url("http://www.foxluo.cn/alumni_club-1.0/sql/photo/add")
+                                        .post(requestBody)
+                                        .build();
+                                Call call = new OkHttpClient().newCall(request);
+                                call.enqueue(new Callback() {
+                                    @Override
+                                    public void onFailure(Call call, IOException e) {
+                                        Log.e("TAG", e.getMessage());
                                         handler1.sendEmptyMessage(0);
                                     }
-                                }
-                            });
-                            return null;
-                        }
 
-                        @Override
-                        protected void onPostExecute(Void aVoid) {
-                            requestPhotos.clear();
-                            request(0);
-                        }
-                    }.execute();
-                } else if (resultCode == UCrop.RESULT_ERROR) {
-                    final Throwable cropError = UCrop.getError(data);
-                    cropError.printStackTrace();
-                    handler1.sendEmptyMessage(0);
-                }
-                break;
-            default:
-                break;
-        }
+                                    @Override
+                                    public void onResponse(Call call, okhttp3.Response response) throws IOException {
+                                        String body = response.body().string();
+                                        Log.i("TAG", body);
+                                        JSONObject result = JSON.parseObject(body);
+                                        if (result.getInteger("code") == 200) {
+                                            handler1.sendEmptyMessage(1);
+                                        } else {
+                                            handler1.sendEmptyMessage(0);
+                                        }
+                                    }
+                                });
+                                return null;
+                            }
+
+                            @Override
+                            protected void onPostExecute(Void aVoid) {
+                                requestPhotos.clear();
+                                request(0);
+                            }
+                        }.execute();
+                    } else if (resultCode == UCrop.RESULT_ERROR) {
+                        final Throwable cropError = UCrop.getError(data);
+                        cropError.printStackTrace();
+                        handler1.sendEmptyMessage(0);
+                    }
+                    break;
+                default:
+                    break;
+            }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -435,7 +444,7 @@ public class YunPhotosActivity extends AppCompatActivity {
         if (view.getId() == R.id.back)
             finish();
         else {
-            if (onUpload){
+            if (onUpload) {
                 Toast.makeText(this, "正在上传!", Toast.LENGTH_SHORT).show();
                 return;
             }

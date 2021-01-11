@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView android:layout_width="80dp"
+    android:layout_height="80dp"
+    android:layout_margin="5dp"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:cardCornerRadius="4dp"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <ImageView
+            android:id="@+id/photo"
+            android:scaleType="center"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+        </ImageView>
+        <CheckBox
+            android:id="@+id/check"
+            android:textColor="#717171"
+            android:layout_width="27dp"
+            android:layout_height="20dp"
+            android:button="@drawable/r_bg"
+            android:layout_alignParentRight="true"
+            android:layoutDirection="rtl"
+            android:textDirection="ltr"
+            android:layout_margin="3dp"/>
+        <TextView
+            android:id="@+id/photo_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/white"
+            android:textSize="12dp"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentBottom="true"
+            android:layout_margin="2dp"/>
+    </RelativeLayout>
+</androidx.cardview.widget.CardView>

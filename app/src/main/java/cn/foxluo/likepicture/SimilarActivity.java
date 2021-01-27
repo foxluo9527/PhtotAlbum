@@ -16,7 +16,6 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -62,12 +61,7 @@ SimilarActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         similar_photos = findViewById(R.id.similar_photos);
         button = findViewById(R.id.button);
-        findViewById(R.id.back).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish();
-            }
-        });
+        findViewById(R.id.back).setOnClickListener(v -> finish());
         adapter = new PhotosGroupAdapter(similarPhotoGroups, photoChecks, opens, SimilarActivity.this, new PhotosGroupAdapter.OnGroupPhotosClickListener() {
             @Override
             public void photoClick(int groupIndex, int photoIndex) {
@@ -96,17 +90,14 @@ SimilarActivity extends AppCompatActivity {
         similar_photos.setLayoutManager(staggeredGridLayoutManager1);
         similar_photos.setAdapter(adapter);
         check = findViewById(R.id.check);
-        check.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                for (int i = 0; i < photoChecks.size(); i++) {
-                    for (int j = 0; j < photoChecks.get(i).size(); j++) {
-                        photoChecks.get(i).set(j, isChecked);
-                    }
+        check.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            for (int i = 0; i < photoChecks.size(); i++) {
+                for (int j = 0; j < photoChecks.get(i).size(); j++) {
+                    photoChecks.get(i).set(j, isChecked);
                 }
-                adapter.notifyDataSetChanged();
-                checkChanged();
             }
+            adapter.notifyDataSetChanged();
+            checkChanged();
         });
         getData();
     }
@@ -260,7 +251,7 @@ SimilarActivity extends AppCompatActivity {
                 adapter.notifyDataSetChanged();
                 long time = System.currentTimeMillis() - date.getTime();
                 Toast.makeText(SimilarActivity.this, "扫描完成,时间花费: " + (time / 1000) + "s", Toast.LENGTH_LONG).show();
-                ((TextView) findViewById(R.id.textView)).setVisibility(View.VISIBLE);
+                findViewById(R.id.textView).setVisibility(View.VISIBLE);
                 ((TextView) findViewById(R.id.textView)).setText("共" + similarPhotoGroups.size() + "组相似图片,占用空间" + format(size));
                 check.setVisibility(View.VISIBLE);
             } else {

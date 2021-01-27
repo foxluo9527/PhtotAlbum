@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -21,6 +22,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -40,11 +42,16 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.bumptech.glide.Glide;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -52,6 +59,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 public class EditActivity extends AppCompatActivity {
     private ArrayList<ArrayList<PhotoBean>> dateGroupPhotos = new ArrayList<>();
@@ -70,7 +78,10 @@ public class EditActivity extends AppCompatActivity {
     int photoPosition;
     boolean deleted = false;
     private static Context context;
-
+    private boolean onLoading = false;
+    private boolean loadingEnable = false;
+    private ProgressDialog loadingDialog;
+    AsyncTask task = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -103,6 +114,22 @@ public class EditActivity extends AppCompatActivity {
         edit_photos.setLayoutManager(new LinearLayoutManager(EditActivity.this));
         edit_photos.setAdapter(adapter);
         getData();
+        loadingDialog = new ProgressDialog(this);
+        loadingDialog.setCancelable(false);
+    }
+    public void showLoading(boolean enable, String message) {
+        if (!onLoading) {
+            this.loadingEnable = enable;
+            loadingDialog.setCanceledOnTouchOutside(loadingEnable);
+            loadingDialog.show();
+            loadingDialog.setMessage(message);
+            onLoading = true;
+        }
+    }
+
+    public void dismissLoading() {
+        loadingDialog.dismiss();
+        onLoading = false;
     }
 
     Handler handler = new Handler() {
@@ -240,7 +267,7 @@ public class EditActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-        overridePendingTransition(R.anim.anim_out, R.anim.anim);
+        overridePendingTransition(0,0);
     }
 
     public static void addToGroups(Context context, final ArrayList<PhotoGroupBean> photoGroupBeans, final ArrayList<PhotoBean> photoBeans, ArrayList<PhotoBean> insertPhotos) {
@@ -324,7 +351,7 @@ public class EditActivity extends AppCompatActivity {
         switch (view.getId()) {
             case R.id.cancel:
                 finish();
-                overridePendingTransition(R.anim.anim_out, R.anim.anim);
+                overridePendingTransition(0,0);
                 break;
             case R.id.all_choice:
                 allChoice = !allChoice;
@@ -353,29 +380,79 @@ public class EditActivity extends AppCompatActivity {
                 if (num > 0) {
                     Intent share = new Intent();
                     String cachePath = context.getExternalCacheDir().getAbsolutePath();
-                    ArrayList<Uri> uris = new ArrayList<>();
-                    for (PhotoBean photoBean : sharePhotos) {
-                        @SuppressLint("SimpleDateFormat") File file = new File(cachePath + File.separator + "cache" + new SimpleDateFormat("yyyyMMddHHmm").format(System.currentTimeMillis()) + UUID.randomUUID().toString().substring(0, 6) + ".jpeg");
-                        if (!file.exists()) {
-                            try {
-                                File dir = new File(file.getParent());
-                                dir.mkdir();
-                                file.createNewFile();
-                                OutputStream ops = new FileOutputStream(file);
-                                Bitmap bitmap = BitmapFactory.decodeFile(photoBean.getPath());
-                                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, ops);
-                                ops.close();
-                                bitmap.recycle();
-                                uris.add(Uri.fromFile(file));
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                    if (!onlineGroups){
+                        ArrayList<Uri> uris = new ArrayList<>();
+                        for (PhotoBean photoBean : sharePhotos) {
+                            @SuppressLint("SimpleDateFormat") File file = new File(cachePath + File.separator + "cache" + new SimpleDateFormat("yyyyMMddHHmm").format(System.currentTimeMillis()) + UUID.randomUUID().toString().substring(0, 6) + ".jpeg");
+                            if (!file.exists()) {
+                                try {
+                                    File dir = new File(file.getParent());
+                                    dir.mkdir();
+                                    file.createNewFile();
+                                    OutputStream ops = new FileOutputStream(file);
+                                    Bitmap bitmap = BitmapFactory.decodeFile(photoBean.getPath());
+                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, ops);
+                                    ops.close();
+                                    bitmap.recycle();
+                                    uris.add(Uri.fromFile(file));
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         }
+                        share.setAction(Intent.ACTION_SEND_MULTIPLE);
+                        share.setType("image/*");
+                        share.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                        context.startActivity(Intent.createChooser(share, sharePhotos.size() + "张图片"));
+                    }else {
+                        showLoading(false,"获取网络图片中");
+                        try {
+                            task=new AsyncTask<Void,Void,ArrayList<Uri>>(){
+                                @Override
+                                protected ArrayList<Uri> doInBackground(Void... voids) {
+                                    ArrayList<Uri> uris=new ArrayList<>();
+                                    for (PhotoBean photoBean : sharePhotos) {
+                                        try {
+                                            Bitmap bitmap=Glide.with(EditActivity.context).asBitmap().load(photoBean.getPath()).submit().get();
+                                            @SuppressLint("SimpleDateFormat") File file = new File(cachePath + File.separator + "cache" + new SimpleDateFormat("yyyyMMddHHmm").format(System.currentTimeMillis()) + UUID.randomUUID().toString().substring(0, 6) + ".jpeg");
+                                            if (!file.exists()) {
+                                                try {
+                                                    File dir = new File(file.getParent());
+                                                    dir.mkdir();
+                                                    file.createNewFile();
+                                                    OutputStream ops = new FileOutputStream(file);
+                                                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, ops);
+                                                    ops.close();
+                                                    uris.add(Uri.fromFile(file));
+                                                } catch (IOException e) {
+                                                    e.printStackTrace();
+                                                    task.cancel(true);
+                                                }
+                                            }
+                                        } catch (ExecutionException e) {
+                                            e.printStackTrace();
+                                            task.cancel(true);
+                                        } catch (InterruptedException e) {
+                                            e.printStackTrace();
+                                            task.cancel(true);
+                                        }
+                                    }
+                                    return uris;
+                                }
+                                @Override
+                                protected void onPostExecute(ArrayList<Uri> uris) {
+                                    dismissLoading();
+                                    share.setAction(Intent.ACTION_SEND_MULTIPLE);
+                                    share.setType("image/*");
+                                    share.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                                    context.startActivity(Intent.createChooser(share, sharePhotos.size() + "张图片"));
+                                }
+                            }.execute();
+                        }catch (Exception e){
+                            dismissLoading();
+                            task.cancel(true);
+                        }
                     }
-                    share.setAction(Intent.ACTION_SEND_MULTIPLE);
-                    share.setType("image/*");
-                    share.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
-                    context.startActivity(Intent.createChooser(share, sharePhotos.size() + "张图片"));
                 }
                 break;
             case R.id.add:
@@ -399,11 +476,8 @@ public class EditActivity extends AppCompatActivity {
                                 .setTitle("提示")
                                 .setMessage("确认下载所选的" + num + "张图片?")
                                 .setNegativeButton("取消", null)
-                                .setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
+                                .setPositiveButton("确定", (dialog12, which) -> {
 
-                                    }
                                 }).create();
                         dialog.show();
                     } else

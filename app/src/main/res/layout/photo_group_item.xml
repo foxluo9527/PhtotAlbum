@@ -30,8 +30,7 @@
                 android:id="@+id/img"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:scaleType="fitCenter"
-                android:src="@drawable/pic"/>
+                android:scaleType="fitCenter"/>
         </RelativeLayout>
     </androidx.cardview.widget.CardView>
     <TextView

@@ -142,30 +142,21 @@ public class EditPhotosAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            if (photoChecks.size()==0||photoChecks.get(groupPosition).size()==0||photos.size()==0||photos.get(position)==null){
-                return;
+            try {
+                Glide.with(context)
+                        .load(photos.get(position).getPath())
+                        .centerCrop()
+                        .placeholder(R.drawable.pic)
+                        .error(R.drawable.pic_break)
+                        .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
+                        .into(((ListPhotosAdapter.PhotoViewHolder) holder).photo);
+                ListPhotosAdapter.PhotoViewHolder viewHolder = (ListPhotosAdapter.PhotoViewHolder) holder;
+                viewHolder.check.setChecked(photoChecks.get(groupPosition).get(position));
+                viewHolder.check.setOnCheckedChangeListener((buttonView, isChecked) -> listener.photoChecked(isChecked, position));
+                viewHolder.photo.setOnClickListener(v -> listener.photoClick(position));
+            }catch (Exception e){
+                e.printStackTrace();
             }
-            Glide.with(context)
-                    .load(photos.get(position).getPath())
-                    .centerCrop()
-                    .placeholder(R.drawable.pic)
-                    .error(R.drawable.pic_break)
-                    .diskCacheStrategy(DiskCacheStrategy.AUTOMATIC)
-                    .into(((ListPhotosAdapter.PhotoViewHolder) holder).photo);
-            ListPhotosAdapter.PhotoViewHolder viewHolder = (ListPhotosAdapter.PhotoViewHolder) holder;
-            viewHolder.check.setChecked(photoChecks.get(groupPosition).get(position));
-            viewHolder.check.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    listener.photoChecked(isChecked, position);
-                }
-            });
-            viewHolder.photo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    listener.photoClick(position);
-                }
-            });
         }
 
         @Override

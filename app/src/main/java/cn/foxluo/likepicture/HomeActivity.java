@@ -110,7 +110,7 @@ public class HomeActivity extends AppCompatActivity {
                 intent.putExtra("groupPosition", groupPosition);
                 intent.putExtra("photoPosition", photoPosition);
                 startActivityForResult(intent,0);
-                overridePendingTransition(R.anim.anim, R.anim.anim_out);
+                overridePendingTransition(0,0);
             }
         });
         staggeredGridLayoutManager = new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);

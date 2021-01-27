@@ -161,7 +161,6 @@ public class YunPhotosActivity extends AppCompatActivity {
         mMainRefresh.setRefreshing(true);
         getData();
     }
-
     Handler handler1 = new Handler() {
         @Override
         public void handleMessage(@NonNull Message msg) {
@@ -189,7 +188,7 @@ public class YunPhotosActivity extends AppCompatActivity {
                 requestPhotos.clear();
                 request(0);
             }
-        } else
+        }else
             switch (requestCode) {
                 case 10003:
                     if (data == null) {

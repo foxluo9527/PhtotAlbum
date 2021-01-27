@@ -1,6 +1,7 @@
 package cn.foxluo.likepicture;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -52,22 +53,23 @@ public class HomeActivity extends AppCompatActivity {
     private Thread hashThread;
     private RecyclerView photos;
     HomePhotoViewAdapter adapter;
-    int scrollY=0;
-    boolean scrollState=false;
+    int scrollY = 0;
+    boolean scrollState = false;
     StaggeredGridLayoutManager staggeredGridLayoutManager;
-    private ArrayList<ArrayList<PhotoBean>> dateGroupPhotos=new ArrayList<>();
+    private ArrayList<ArrayList<PhotoBean>> dateGroupPhotos = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Window window=getWindow();
+        Window window = getWindow();
         window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             window.setStatusBarColor(getResources().getColor(R.color.white));
         }
         setContentView(R.layout.activity_home);
-        photos=findViewById(R.id.home_photos);
-        adapter=new HomePhotoViewAdapter(dateGroupPhotos, this, new HomePhotoViewAdapter.OnPhotoClickListener() {
+        photos = findViewById(R.id.home_photos);
+        adapter = new HomePhotoViewAdapter(dateGroupPhotos, this, new HomePhotoViewAdapter.OnPhotoClickListener() {
             @Override
             public void onPhotoClick(int groupIndex, int photoPosition) {
                 BGAPhotoPreviewActivity.IntentBuilder photoPreviewIntentBuilder = new BGAPhotoPreviewActivity.IntentBuilder(HomeActivity.this)
@@ -77,13 +79,13 @@ public class HomeActivity extends AppCompatActivity {
                     photoPreviewIntentBuilder.previewPhoto(dateGroupPhotos.get(0).get(0).getPath());
                 } else if (dateGroupPhotos.size() > 1) {
                     ArrayList<String> showPhotoUrls = new ArrayList<>();
-                    for (int i = 0; i <dateGroupPhotos.size() ; i++) {
-                        ArrayList<PhotoBean> photoBeans=dateGroupPhotos.get(i);
-                        for (PhotoBean photoBean:photoBeans) {
+                    for (int i = 0; i < dateGroupPhotos.size(); i++) {
+                        ArrayList<PhotoBean> photoBeans = dateGroupPhotos.get(i);
+                        for (PhotoBean photoBean : photoBeans) {
                             showPhotoUrls.add(photoBean.getPath());
                         }
-                        if (i<groupIndex){
-                            photoPosition+=photoBeans.size();
+                        if (i < groupIndex) {
+                            photoPosition += photoBeans.size();
                         }
                     }
                     // 预览多张图片
@@ -95,19 +97,19 @@ public class HomeActivity extends AppCompatActivity {
 
             @Override
             public void onPhotoLongClick(int groupPosition, int photoPosition) {
-                Vibrator vibrator = (Vibrator)HomeActivity.this.getSystemService(HomeActivity.this.VIBRATOR_SERVICE);
+                Vibrator vibrator = (Vibrator) HomeActivity.this.getSystemService(HomeActivity.this.VIBRATOR_SERVICE);
                 vibrator.vibrate(100);
-                Intent intent=new Intent(HomeActivity.this,EditActivity.class);
-                intent.putParcelableArrayListExtra("editPhotos",allPhotos);
-                int headerHeight=dip2px(HomeActivity.this,80);
-                if (scrollY>=(-headerHeight)){
-                    intent.putExtra("editPosition",0);
-                }else {
-                    intent.putExtra("editPosition",(int)((scrollY+headerHeight)*1.01));
+                Intent intent = new Intent(HomeActivity.this, EditActivity.class);
+                intent.putParcelableArrayListExtra("editPhotos", allPhotos);
+                int headerHeight = dip2px(HomeActivity.this, 80);
+                if (scrollY >= (-headerHeight)) {
+                    intent.putExtra("editPosition", 0);
+                } else {
+                    intent.putExtra("editPosition", (int) ((scrollY + headerHeight) * 1.01));
                 }
-                intent.putExtra("groupPosition",groupPosition);
-                intent.putExtra("photoPosition",photoPosition);
-                startActivity(intent);
+                intent.putExtra("groupPosition", groupPosition);
+                intent.putExtra("photoPosition", photoPosition);
+                startActivityForResult(intent,0);
                 overridePendingTransition(R.anim.anim, R.anim.anim_out);
             }
         });
@@ -119,8 +121,8 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-                scrollY-=dy;
-                if (scrollY==0){
+                scrollY -= dy;
+                if (scrollY == 0) {
                     findViewById(R.id.top).setVisibility(View.GONE);
                 }
             }
@@ -128,9 +130,9 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
                 super.onScrollStateChanged(recyclerView, newState);
-                if (newState==0){
-                    scrollState=false;
-                    new Handler(){
+                if (newState == 0) {
+                    scrollState = false;
+                    new Handler() {
                         @Override
                         public void handleMessage(@NonNull Message msg) {
                             super.handleMessage(msg);
@@ -141,9 +143,9 @@ public class HomeActivity extends AppCompatActivity {
                             if (!scrollState)
                                 findViewById(R.id.top).setVisibility(View.GONE);
                         }
-                    },1000);
-                }else {
-                    scrollState=true;
+                    }, 1000);
+                } else {
+                    scrollState = true;
                     findViewById(R.id.top).setVisibility(View.VISIBLE);
                 }
             }
@@ -174,48 +176,40 @@ public class HomeActivity extends AppCompatActivity {
             } else {
                 Toast.makeText(this, "由于您拒绝了应用权限，将无法正常使用软件功能", Toast.LENGTH_SHORT).show();
             }
-        }else {
+        } else {
             sort();
         }
     }
-    ArrayList<PhotoRequestBean.DataBean.ListBean> requestPhotos=new ArrayList<>();
-    private void loadCloudPhotos(int page){
-        int size=50;
+
+    ArrayList<PhotoRequestBean.DataBean.ListBean> requestPhotos = new ArrayList<>();
+
+    private void loadCloudPhotos(int page) {
+        int size = 50;
         StringRequest request = new StringRequest(
                 Request.Method.POST,
                 "http://www.foxluo.cn/alumni_club-1.0/sql/photo/list",
-                new Response.Listener<String>() {
+                s -> new Thread() {
                     @Override
-                    public void onResponse(String s) {
-                        new Thread(){
-                            @Override
-                            public void run() {
-                                PhotoRequestBean requestBean = JSONObject.parseObject(s,PhotoRequestBean.class);
-                                if (requestBean.getCode() == 200) {
-                                    requestPhotos.addAll(requestBean.getData().getList());
-                                    if (!requestBean.getData().isHasNextPage()){
-                                        MyApplication.dao.cleanPhotoGroup(1);
-                                        for (PhotoRequestBean.DataBean.ListBean listBean : requestBean.getData().getList()) {
-                                            PhotoBean photoBean=new PhotoBean(0,null,listBean.getUrl(),0);
-                                            photoBean.setG_id(1);
-                                            photoBean.setUrl_p_id(listBean.getId());
-                                            photoBean.setDesc(listBean.getName());
-                                            photoBean.setTime(listBean.getTime());
-                                            MyApplication.dao.insertPhoto(photoBean);
-                                        }
-                                    }else
-                                        loadCloudPhotos(page + 1);
+                    public void run() {
+                        PhotoRequestBean requestBean = JSONObject.parseObject(s, PhotoRequestBean.class);
+                        if (requestBean.getCode() == 200) {
+                            requestPhotos.addAll(requestBean.getData().getList());
+                            if (!requestBean.getData().isHasNextPage()) {
+                                MyApplication.dao.cleanPhotoGroup(1);
+                                for (PhotoRequestBean.DataBean.ListBean listBean : requestBean.getData().getList()) {
+                                    PhotoBean photoBean = new PhotoBean(0, null, listBean.getUrl(), 0);
+                                    photoBean.setG_id(1);
+                                    photoBean.setUrl_p_id(listBean.getId());
+                                    photoBean.setDesc(listBean.getName());
+                                    photoBean.setTime(listBean.getTime());
+                                    MyApplication.dao.insertPhoto(photoBean);
                                 }
-                            }
-                        }.start();
+                            } else
+                                loadCloudPhotos(page + 1);
+                        }
                     }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError volleyError) {
-                        Toast.makeText(HomeActivity.this, "获取云相册数据失败", Toast.LENGTH_SHORT).show();
-                    }
-                }
+                }.start(),
+                volleyError -> Toast.makeText(HomeActivity.this, "获取云相册数据失败", Toast.LENGTH_SHORT).show()
         ) {
             @Override
             public Map<String, String> getHeaders() throws AuthFailureError {  //设置头信息
@@ -225,7 +219,7 @@ public class HomeActivity extends AppCompatActivity {
             }
 
             @Override
-            protected Map<String, String> getParams() throws AuthFailureError {  //设置参数
+            protected Map<String, String> getParams() {  //设置参数
                 Map<String, String> map = new HashMap<String, String>();
                 map.put("page", page + "");
                 map.put("size", size + "");
@@ -235,10 +229,12 @@ public class HomeActivity extends AppCompatActivity {
         RequestQueue mQueue = Volley.newRequestQueue(HomeActivity.this);
         mQueue.add(request);
     }
+
     public static int dip2px(Context context, float dpValue) {
         final float scale = context.getResources().getDisplayMetrics().density;
         return (int) (dpValue * scale + 0.5f);
     }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -249,7 +245,8 @@ public class HomeActivity extends AppCompatActivity {
             getPRM();
         }
     }
-    Handler handler=new Handler(){
+
+    Handler handler = new Handler() {
         @Override
         public void handleMessage(@NonNull Message msg) {
             super.handleMessage(msg);
@@ -274,8 +271,9 @@ public class HomeActivity extends AppCompatActivity {
         }
         startActivityForResult(localIntent, 10001);
     }
-    private void sort(){
-        new Thread(){
+
+    private void sort() {
+        new Thread() {
             @Override
             public void run() {
                 super.run();
@@ -321,7 +319,7 @@ public class HomeActivity extends AppCompatActivity {
                             return 0;
                         }
                 );
-                for (ArrayList<PhotoBean> photos:dateGroupPhotos) {
+                for (ArrayList<PhotoBean> photos : dateGroupPhotos) {
                     Collections.sort(photos, (o1, o2) ->
                             {
                                 if (o1 == null && o2 == null) {
@@ -347,6 +345,7 @@ public class HomeActivity extends AppCompatActivity {
             }
         }.start();
     }
+
     private void getAllPhotos() {
         new Thread() {
             @Override
@@ -373,8 +372,8 @@ public class HomeActivity extends AppCompatActivity {
                             do {
                                 String path = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA));
                                 long size = cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.SIZE));
-                                int id=0;
-                                PhotoBean photo = new PhotoBean(id,null, path, size);
+                                int id = 0;
+                                PhotoBean photo = new PhotoBean(id, null, path, size);
                                 File file = new File(photo.getPath());
                                 long time = file.lastModified();
                                 photo.setTime(time);
@@ -390,6 +389,16 @@ public class HomeActivity extends AppCompatActivity {
                 }
             }
         }.start();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (data != null) {
+            if (data.getBooleanExtra("dataChanged", false)) {
+                getAllPhotos();
+            }
+        }
     }
 
     public void onClick(View view) {
@@ -417,7 +426,7 @@ public class HomeActivity extends AppCompatActivity {
                 break;
             case R.id.top:
                 photos.stopScroll();
-                scrollY=0;
+                scrollY = 0;
                 staggeredGridLayoutManager.scrollToPosition(0);
                 findViewById(R.id.top).setVisibility(View.GONE);
                 break;

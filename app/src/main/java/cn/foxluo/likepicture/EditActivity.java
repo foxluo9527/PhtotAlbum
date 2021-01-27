@@ -7,10 +7,15 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -36,11 +41,17 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class EditActivity extends AppCompatActivity {
     private ArrayList<ArrayList<PhotoBean>> dateGroupPhotos = new ArrayList<>();
@@ -59,6 +70,7 @@ public class EditActivity extends AppCompatActivity {
     int photoPosition;
     boolean deleted = false;
     private static Context context;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,7 +81,7 @@ public class EditActivity extends AppCompatActivity {
             window.setStatusBarColor(getResources().getColor(R.color.white));
         }
         setContentView(R.layout.activity_edit);
-        context=this;
+        context = this;
         choice = findViewById(R.id.choice);
         all_choice = findViewById(R.id.all_choice);
         gone = findViewById(R.id.gone);
@@ -79,8 +91,8 @@ public class EditActivity extends AppCompatActivity {
         groupPosition = getIntent().getIntExtra("groupPosition", 0);
         photoPosition = getIntent().getIntExtra("photoPosition", 0);
         groupId = getIntent().getIntExtra("groupId", 0);
-        if (groupId==1){
-            onlineGroups=true;
+        if (groupId == 1) {
+            onlineGroups = true;
         }
         adapter = new EditPhotosAdapter(dateGroupPhotos, photosCheck, EditActivity.this, new EditPhotosAdapter.OnGroupPhotosClickListener() {
             @Override
@@ -114,7 +126,7 @@ public class EditActivity extends AppCompatActivity {
                 photosCheck.clear();
                 for (int i = 0; i < editPhotos.size(); i++) {
                     if (i == 0) {
-                        dateGroupPhotos.add(new ArrayList<PhotoBean>());
+                        dateGroupPhotos.add(new ArrayList<>());
                         dateGroupPhotos.get(i).add(editPhotos.get(i));
                     } else {
                         long date = editPhotos.get(i).getTime();
@@ -246,23 +258,41 @@ public class EditActivity extends AppCompatActivity {
         popupWindow.setOutsideTouchable(false);
         popupWindow.update();
         //popupWindow消失屏幕变为不透明
-        popupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
-            @Override
-            public void onDismiss() {
-                WindowManager.LayoutParams lp = ((AppCompatActivity) context).getWindow().getAttributes();
-                lp.alpha = 1.0f;
-                ((AppCompatActivity) context).getWindow().setAttributes(lp);
-            }
+        popupWindow.setOnDismissListener(() -> {
+            WindowManager.LayoutParams lp = ((AppCompatActivity) context).getWindow().getAttributes();
+            lp.alpha = 1.0f;
+            ((AppCompatActivity) context).getWindow().setAttributes(lp);
         });
         RecyclerView listView = popView.findViewById(R.id.groups);
-        ChoiceGroupsAdapter adapter = new ChoiceGroupsAdapter(photoBeans, photoGroupBeans, new ChoiceGroupsAdapter.OnPhotoClickListener() {
+        ChoiceGroupsAdapter adapter = new ChoiceGroupsAdapter(photoBeans, photoGroupBeans, photoPosition -> new AsyncTask<Void, Void, Void>() {
             @Override
-            public void itemClick(int photoPosition) {
+            protected Void doInBackground(Void... voids) {
+                for (PhotoBean photoBean : insertPhotos) {
+                    photoBean.setG_id(photoGroupBeans.get(photoPosition).getId());
+                    MyApplication.dao.insertPhoto(photoBean);
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void aVoid) {
+                Toast.makeText(context, "加入相册" + photoGroupBeans.get(photoPosition).getName() + "成功!"
+                        , Toast.LENGTH_SHORT).show();
+                popupWindow.dismiss();
+                ((AppCompatActivity) context).finish();
+            }
+        }.execute(), context);
+        listView.setLayoutManager(new GridLayoutManager(context, 1));
+        listView.setAdapter(adapter);
+        create.setOnClickListener(view -> PhotoGroupsActivity.createGroup(context, new Handler() {
+            @Override
+            public void handleMessage(@NonNull Message msg) {
+                int groupId = msg.arg1;
                 new AsyncTask<Void, Void, Void>() {
                     @Override
                     protected Void doInBackground(Void... voids) {
                         for (PhotoBean photoBean : insertPhotos) {
-                            photoBean.setG_id(photoGroupBeans.get(photoPosition).getId());
+                            photoBean.setG_id(groupId);
                             MyApplication.dao.insertPhoto(photoBean);
                         }
                         return null;
@@ -270,50 +300,14 @@ public class EditActivity extends AppCompatActivity {
 
                     @Override
                     protected void onPostExecute(Void aVoid) {
-                        Toast.makeText(context, "加入相册" + photoGroupBeans.get(photoPosition).getName() + "成功!"
-                                , Toast.LENGTH_SHORT).show();
+                        Toast.makeText(context, "加入相册成功!", Toast.LENGTH_SHORT).show();
                         popupWindow.dismiss();
                         ((AppCompatActivity) context).finish();
                     }
                 }.execute();
             }
-        }, context);
-        listView.setLayoutManager(new GridLayoutManager(context, 1));
-        listView.setAdapter(adapter);
-        create.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                PhotoGroupsActivity.createGroup(context, new Handler() {
-                    @Override
-                    public void handleMessage(@NonNull Message msg) {
-                        int groupId = msg.arg1;
-                        new AsyncTask<Void, Void, Void>() {
-                            @Override
-                            protected Void doInBackground(Void... voids) {
-                                for (PhotoBean photoBean : insertPhotos) {
-                                    photoBean.setG_id(groupId);
-                                    MyApplication.dao.insertPhoto(photoBean);
-                                }
-                                return null;
-                            }
-
-                            @Override
-                            protected void onPostExecute(Void aVoid) {
-                                Toast.makeText(context, "加入相册成功!", Toast.LENGTH_SHORT).show();
-                                popupWindow.dismiss();
-                                ((AppCompatActivity) context).finish();
-                            }
-                        }.execute();
-                    }
-                });
-            }
-        });
-        cancel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                popupWindow.dismiss();
-            }
-        });
+        }));
+        cancel.setOnClickListener(view -> popupWindow.dismiss());
         //popupWindow出现屏幕变为半透明
         WindowManager.LayoutParams lp = ((AppCompatActivity) context).getWindow().getAttributes();
         lp.alpha = 0.5f;
@@ -342,7 +336,50 @@ public class EditActivity extends AppCompatActivity {
                 checkChanged();
                 adapter.notifyDataSetChanged();
                 break;
+            case R.id.share:
+                ArrayList<PhotoBean> sharePhotos = new ArrayList<>();
+                for (int j = 0; j < photosCheck.size(); j++) {
+                    ArrayList<Boolean> checks = photosCheck.get(j);
+                    ArrayList<PhotoBean> photoBeans = dateGroupPhotos.get(j);
+                    for (int i = 0; i < checks.size(); i++) {
+                        Boolean b = checks.get(i);
+                        if (b) {
+                            num++;
+                            photoBeans.get(i).setTime(new Date().getTime());
+                            sharePhotos.add(photoBeans.get(i));
+                        }
+                    }
+                }
+                if (num > 0) {
+                    Intent share = new Intent();
+                    String cachePath = context.getExternalCacheDir().getAbsolutePath();
+                    ArrayList<Uri> uris = new ArrayList<>();
+                    for (PhotoBean photoBean : sharePhotos) {
+                        @SuppressLint("SimpleDateFormat") File file = new File(cachePath + File.separator + "cache" + new SimpleDateFormat("yyyyMMddHHmm").format(System.currentTimeMillis()) + UUID.randomUUID().toString().substring(0, 6) + ".jpeg");
+                        if (!file.exists()) {
+                            try {
+                                File dir = new File(file.getParent());
+                                dir.mkdir();
+                                file.createNewFile();
+                                OutputStream ops = new FileOutputStream(file);
+                                Bitmap bitmap = BitmapFactory.decodeFile(photoBean.getPath());
+                                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, ops);
+                                ops.close();
+                                bitmap.recycle();
+                                uris.add(Uri.fromFile(file));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+                    share.setAction(Intent.ACTION_SEND_MULTIPLE);
+                    share.setType("image/*");
+                    share.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris);
+                    context.startActivity(Intent.createChooser(share, sharePhotos.size() + "张图片"));
+                }
+                break;
             case R.id.add:
+                num = 0;
                 ArrayList<PhotoBean> insertPhotos = new ArrayList<>();
                 for (int j = 0; j < photosCheck.size(); j++) {
                     ArrayList<Boolean> checks = photosCheck.get(j);
@@ -356,8 +393,8 @@ public class EditActivity extends AppCompatActivity {
                         }
                     }
                 }
-                if (onlineGroups) {
-                    if (num > 0) {
+                if (num > 0) {
+                    if (onlineGroups) {
                         AlertDialog dialog = new AlertDialog.Builder(this)
                                 .setTitle("提示")
                                 .setMessage("确认下载所选的" + num + "张图片?")
@@ -369,43 +406,43 @@ public class EditActivity extends AppCompatActivity {
                                     }
                                 }).create();
                         dialog.show();
-                    }
-                } else
-                    new AsyncTask<Void, Void, ArrayList<PhotoGroupBean>>() {
-                        @Override
-                        protected ArrayList<PhotoGroupBean> doInBackground(Void... voids) {
-                            ArrayList<PhotoGroupBean> photoGroupBeans = new ArrayList<>();
-                            photoGroupBeans.addAll((ArrayList<PhotoGroupBean>) MyApplication.dao.getPhotoGroups());
-                            groupFirstPhotos.clear();
-                            for (int i = 0; i < photoGroupBeans.size(); i++) {
-                                PhotoGroupBean photoGroupBean=photoGroupBeans.get(i);
-                                if (photoGroupBean.getId() == 1||photoGroupBean.getId()==groupId){
-                                    photoGroupBeans.remove(i);
-                                    i--;
-                                    continue;
+                    } else
+                        new AsyncTask<Void, Void, ArrayList<PhotoGroupBean>>() {
+                            @Override
+                            protected ArrayList<PhotoGroupBean> doInBackground(Void... voids) {
+                                ArrayList<PhotoGroupBean> photoGroupBeans = new ArrayList<>();
+                                photoGroupBeans.addAll(MyApplication.dao.getPhotoGroups());
+                                groupFirstPhotos.clear();
+                                for (int i = 0; i < photoGroupBeans.size(); i++) {
+                                    PhotoGroupBean photoGroupBean = photoGroupBeans.get(i);
+                                    if (photoGroupBean.getId() == 1 || photoGroupBean.getId() == groupId) {
+                                        photoGroupBeans.remove(i);
+                                        i--;
+                                        continue;
+                                    }
+                                    ArrayList<PhotoBean> photoBeans = (ArrayList<PhotoBean>) MyApplication.dao.getGroupPhotos(photoGroupBean.getId());
+                                    if (photoBeans.size() > 0)
+                                        groupFirstPhotos.add(photoBeans.get(0));
+                                    else
+                                        groupFirstPhotos.add(new PhotoBean(0, null, null, 0));
+                                    photoGroupBean.setNum(photoBeans.size());
                                 }
-                                ArrayList<PhotoBean> photoBeans = (ArrayList<PhotoBean>) MyApplication.dao.getGroupPhotos(photoGroupBean.getId());
-                                if (photoBeans.size() > 0)
-                                    groupFirstPhotos.add(photoBeans.get(0));
-                                else
-                                    groupFirstPhotos.add(new PhotoBean(0, null, null, 0));
-                                photoGroupBean.setNum(photoBeans.size());
+                                return photoGroupBeans;
                             }
-                            return photoGroupBeans;
-                        }
 
-                        @Override
-                        protected void onPostExecute(ArrayList<PhotoGroupBean> photoGroupBeans) {
-                            if (num > 0) {
-                                setResult(10002);
-                                addToGroups(EditActivity.this, photoGroupBeans, groupFirstPhotos, insertPhotos);
+                            @Override
+                            protected void onPostExecute(ArrayList<PhotoGroupBean> photoGroupBeans) {
+                                if (num > 0) {
+                                    setResult(10002);
+                                    addToGroups(EditActivity.this, photoGroupBeans, groupFirstPhotos, insertPhotos);
+                                }
                             }
-                        }
-                    }.execute();
+                        }.execute();
+                }
                 break;
             case R.id.del:
                 num = 0;
-                ArrayList<Integer> deleteIds = new ArrayList<>();
+                ArrayList<PhotoBean> deletePhotos = new ArrayList<>();
                 for (int j = 0; j < photosCheck.size(); j++) {
                     ArrayList<Boolean> checks = photosCheck.get(j);
                     ArrayList<PhotoBean> photoBeans = dateGroupPhotos.get(j);
@@ -413,91 +450,123 @@ public class EditActivity extends AppCompatActivity {
                         Boolean b = checks.get(i);
                         if (b) {
                             num++;
-                            if (onlineGroups)
-                                deleteIds.add(photoBeans.get(i).getUrl_p_id());
-                            else
-                                deleteIds.add(photoBeans.get(i).getId());
+                            deletePhotos.add(photoBeans.get(i));
                         }
                     }
                 }
-                if (num > 0) {
-                    AlertDialog dialog = new AlertDialog.Builder(this)
-                            .setTitle("提示")
-                            .setMessage("确认删除所选的" + num + "张图片?")
-                            .setNegativeButton("取消", null)
-                            .setPositiveButton("确定", new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    deleteNum = 0;
-                                    deleteSuccessNum = 0;
-                                    if (onlineGroups) {
-                                        for (int id : deleteIds) {
-                                            if (id > 0) {
-                                                StringRequest request = new StringRequest(
-                                                        Request.Method.POST,
-                                                        "http://www.foxluo.cn/alumni_club-1.0/sql/photo/delete",
-                                                        new Response.Listener<String>() {
-                                                            @Override
-                                                            public void onResponse(String s) {
-                                                                new Thread() {
-                                                                    @Override
-                                                                    public void run() {
-                                                                        MyApplication.dao.deleteOnlinePhoto(id);
-                                                                    }
-                                                                }.start();
-                                                                deleted = true;
-                                                                setResult(10002);
-                                                                for (int i = 0; i < editPhotos.size(); i++) {
-                                                                    PhotoBean photoBean = editPhotos.get(i);
-                                                                    if (photoBean.getUrl_p_id() == id) {
-                                                                        editPhotos.remove(i);
-                                                                        getData();
-                                                                        break;
-                                                                    }
-                                                                }
-                                                                deleteNum++;
-                                                                deleteSuccessNum++;
-                                                                if (deleteNum == num) {
-                                                                    if (deleteSuccessNum == deleteNum) {
-                                                                        Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功", Toast.LENGTH_SHORT).show();
-                                                                    } else
-                                                                        Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功，" + (num - deleteSuccessNum) + "张删除失败", Toast.LENGTH_SHORT).show();
-                                                                }
-                                                            }
-                                                        },
-                                                        new Response.ErrorListener() {
-                                                            @Override
-                                                            public void onErrorResponse(VolleyError volleyError) {
-                                                                deleteNum++;
-                                                                if (deleteNum == num) {
-                                                                    Toast.makeText(EditActivity.this, deleteNum + "张图片删除失败", Toast.LENGTH_SHORT).show();
-                                                                }
-                                                            }
+                if (num <= 0) {
+                    break;
+                }
+                AlertDialog dialog = new AlertDialog.Builder(this)
+                        .setTitle("提示")
+                        .setMessage("确认删除所选的" + num + "张图片?")
+                        .setNegativeButton("取消", null)
+                        .setPositiveButton("确定", (dialog1, which) -> {
+                            deleteNum = 0;
+                            deleteSuccessNum = 0;
+                            for (PhotoBean photoBean : deletePhotos) {
+                                if (onlineGroups) {
+                                    int id = photoBean.getUrl_p_id();
+                                    if (id > 0) {
+                                        StringRequest request = new StringRequest(
+                                                Request.Method.POST,
+                                                "http://www.foxluo.cn/alumni_club-1.0/sql/photo/delete",
+                                                s -> {
+                                                    new Thread() {
+                                                        @Override
+                                                        public void run() {
+                                                            MyApplication.dao.deleteOnlinePhoto(id);
                                                         }
-                                                ) {
-                                                    @Override
-                                                    public Map<String, String> getHeaders() throws AuthFailureError {  //设置头信息
-                                                        Map<String, String> map = new HashMap<String, String>();
-                                                        map.put("Content-Type", "application/x-www-form-urlencoded");
-                                                        return map;
+                                                    }.start();
+                                                    deleted = true;
+                                                    setResult(10002);
+                                                    for (int i = 0; i < editPhotos.size(); i++) {
+                                                        PhotoBean photoBean1 = editPhotos.get(i);
+                                                        if (photoBean1.getUrl_p_id() == id) {
+                                                            editPhotos.remove(i);
+                                                            getData();
+                                                            break;
+                                                        }
                                                     }
-
-                                                    @Override
-                                                    protected Map<String, String> getParams() throws AuthFailureError {  //设置参数
-                                                        Map<String, String> map = new HashMap<String, String>();
-                                                        map.put("id", id + "");
-                                                        return map;
+                                                    deleteNum++;
+                                                    deleteSuccessNum++;
+                                                    Intent intent = new Intent();
+                                                    intent.putExtra("dataChanged", true);
+                                                    setResult(10002, intent);
+                                                    if (deleteNum == num) {
+                                                        if (deleteSuccessNum == deleteNum) {
+                                                            Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功", Toast.LENGTH_SHORT).show();
+                                                        } else
+                                                            Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功，" + (num - deleteSuccessNum) + "张删除失败", Toast.LENGTH_SHORT).show();
                                                     }
-                                                };
-                                                RequestQueue mQueue = Volley.newRequestQueue(EditActivity.this);
-                                                mQueue.add(request);
+                                                },
+                                                volleyError -> {
+                                                    deleteNum++;
+                                                    if (deleteNum == num) {
+                                                        Toast.makeText(EditActivity.this, deleteNum + "张图片删除失败", Toast.LENGTH_SHORT).show();
+                                                    }
+                                                }
+                                        ) {
+                                            @Override
+                                            public Map<String, String> getHeaders() {  //设置头信息
+                                                Map<String, String> map = new HashMap<>();
+                                                map.put("Content-Type", "application/x-www-form-urlencoded");
+                                                return map;
                                             }
+
+                                            @Override
+                                            protected Map<String, String> getParams() {  //设置参数
+                                                Map<String, String> map = new HashMap<>();
+                                                map.put("id", id + "");
+                                                return map;
+                                            }
+                                        };
+                                        RequestQueue mQueue = Volley.newRequestQueue(EditActivity.this);
+                                        mQueue.add(request);
+                                    }
+                                } else if (groupId==0){
+                                    try {
+                                        deleteNum++;
+                                        File file = new File(photoBean.getPath());
+                                        file.delete();
+                                        deleted = true;
+                                        deleteSuccessNum++;
+                                    } catch (Exception e) {
+                                        e.printStackTrace();
+                                    } finally {
+                                        if (deleteNum == num) {
+                                            if (deleteSuccessNum == deleteNum) {
+                                                Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功", Toast.LENGTH_SHORT).show();
+                                            } else
+                                                Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功，" + (num - deleteSuccessNum) + "张删除失败", Toast.LENGTH_SHORT).show();
+                                            editPhotos.remove(photoBean);
+                                            getData();
+                                            Intent intent = new Intent();
+                                            intent.putExtra("dataChanged", true);
+                                            setResult(10002, intent);
                                         }
                                     }
+                                }else {
+                                    new AsyncTask<Void,Void,Void>(){
+                                        @Override
+                                        protected Void doInBackground(Void... voids) {
+                                            MyApplication.dao.deletePhoto(photoBean);
+                                            return null;
+                                        }
+
+                                        @Override
+                                        protected void onPostExecute(Void aVoid) {
+                                            editPhotos.remove(photoBean);
+                                            getData();
+                                            Intent intent = new Intent();
+                                            intent.putExtra("dataChanged", true);
+                                            setResult(10002, intent);
+                                        }
+                                    }.execute();
                                 }
-                            }).create();
-                    dialog.show();
-                }
+                            }
+                        }).create();
+                dialog.show();
                 break;
         }
     }

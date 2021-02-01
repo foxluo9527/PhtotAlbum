@@ -49,7 +49,7 @@ public class RepeatActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Window window=getWindow();
+        Window window = getWindow();
         window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -173,8 +173,10 @@ public class RepeatActivity extends AppCompatActivity {
                             try {
                                 int dateGroupSize = dateGroupPhotos.size() - 1;
                                 for (PhotoBean photoBean : datePhotos) {
-                                    if (TextUtils.isEmpty(photoBean.getHashCode()))
+                                    if (TextUtils.isEmpty(photoBean.getHashCode())) {
+                                        photoBean.setHashCode("On getting...");
                                         photoBean.setHashCode(ImageHelper.getHashCode(photoBean));
+                                    }
                                 }
                                 for (int i = 0; i < datePhotos.size(); i++) {
                                     boolean flag = false;
@@ -285,7 +287,7 @@ public class RepeatActivity extends AppCompatActivity {
 
     private int distance(String s1, String s2) {
         int counter = 0;
-        if (s1==null||s2==null){
+        if (s1 == null || s2 == null) {
             return 100;
         }
         for (int k = 0; k < s1.length(); k++) {

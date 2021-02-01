@@ -314,55 +314,47 @@ public class YunPhotosActivity extends AppCompatActivity {
         StringRequest request = new StringRequest(
                 Request.Method.POST,
                 "http://www.foxluo.cn/alumni_club-1.0/sql/photo/list",
-                new Response.Listener<String>() {
+                s -> new Thread() {
                     @Override
-                    public void onResponse(String s) {
-                        new Thread() {
-                            @Override
-                            public void run() {
-                                PhotoRequestBean requestBean = JSONObject.parseObject(s, PhotoRequestBean.class);
-                                if (requestBean.getCode() == 200) {
-                                    requestPhotos.addAll(requestBean.getData().getList());
-                                    if (!requestBean.getData().isHasNextPage()) {
-                                        allPhotos.clear();
-                                        dateGroupPhotos.clear();
-                                        MyApplication.dao.cleanPhotoGroup(1);
-                                        for (PhotoRequestBean.DataBean.ListBean listBean : requestBean.getData().getList()) {
-                                            PhotoBean photoBean = new PhotoBean(0, null, listBean.getUrl(), 0);
-                                            photoBean.setG_id(1);
-                                            photoBean.setUrl_p_id(listBean.getId());
-                                            photoBean.setDesc(listBean.getName());
-                                            photoBean.setTime(listBean.getTime());
-                                            allPhotos.add(photoBean);
-                                            MyApplication.dao.insertPhoto(photoBean);
-                                        }
-                                        sort();
-                                        handler.sendEmptyMessage(0);
-                                    } else
-                                        request(page + 1);
+                    public void run() {
+                        PhotoRequestBean requestBean = JSONObject.parseObject(s, PhotoRequestBean.class);
+                        if (requestBean.getCode() == 200) {
+                            requestPhotos.addAll(requestBean.getData().getList());
+                            if (!requestBean.getData().isHasNextPage()) {
+                                allPhotos.clear();
+                                dateGroupPhotos.clear();
+                                MyApplication.dao.cleanPhotoGroup(1);
+                                for (PhotoRequestBean.DataBean.ListBean listBean : requestBean.getData().getList()) {
+                                    PhotoBean photoBean = new PhotoBean(0, null, listBean.getUrl(), 0);
+                                    photoBean.setG_id(1);
+                                    photoBean.setUrl_p_id(listBean.getId());
+                                    photoBean.setDesc(listBean.getName());
+                                    photoBean.setTime(listBean.getTime());
+                                    allPhotos.add(photoBean);
+                                    MyApplication.dao.insertPhoto(photoBean);
                                 }
-                            }
-                        }.start();
+                                sort();
+                                handler.sendEmptyMessage(0);
+                            } else
+                                request(page + 1);
+                        }
                     }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError volleyError) {
-                        handler.sendEmptyMessage(0);
-                        Toast.makeText(YunPhotosActivity.this, "获取云相册数据失败", Toast.LENGTH_SHORT).show();
-                    }
+                }.start(),
+                volleyError -> {
+                    handler.sendEmptyMessage(0);
+                    Toast.makeText(YunPhotosActivity.this, "获取云相册数据失败", Toast.LENGTH_SHORT).show();
                 }
         ) {
             @Override
-            public Map<String, String> getHeaders() throws AuthFailureError {  //设置头信息
-                Map<String, String> map = new HashMap<String, String>();
+            public Map<String, String> getHeaders() {  //设置头信息
+                Map<String, String> map = new HashMap<>();
                 map.put("Content-Type", "application/x-www-form-urlencoded");
                 return map;
             }
 
             @Override
-            protected Map<String, String> getParams() throws AuthFailureError {  //设置参数
-                Map<String, String> map = new HashMap<String, String>();
+            protected Map<String, String> getParams() {  //设置参数
+                Map<String, String> map = new HashMap<>();
                 map.put("page", page + "");
                 map.put("size", size + "");
                 return map;

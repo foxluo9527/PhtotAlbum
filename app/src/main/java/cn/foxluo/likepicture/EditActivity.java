@@ -10,9 +10,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
@@ -601,19 +604,30 @@ public class EditActivity extends AppCompatActivity {
                                 } else if (groupId==0){
                                     try {
                                         deleteNum++;
-                                        File file = new File(photoBean.getPath());
-                                        file.delete();
+                                        ContentResolver resolver = this.getContentResolver();
+                                        Cursor cursor = MediaStore.Images.Media.query(resolver, MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                                new String[]{MediaStore.Images.Media._ID}, MediaStore.Images.Media.DATA + "=?",
+                                                new String[]{photoBean.getPath()}, null);
+                                        if (null != cursor && cursor.moveToFirst()) {
+                                            long id = cursor.getLong(0);
+                                            Uri contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                                            Uri uri = ContentUris.withAppendedId(contentUri, id);
+                                            this.getContentResolver().delete(uri, null, null);
+                                        } else {
+                                            File file = new File(photoBean.getPath());
+                                            file.delete();
+                                        }
                                         deleted = true;
                                         deleteSuccessNum++;
                                     } catch (Exception e) {
                                         e.printStackTrace();
                                     } finally {
+                                        editPhotos.remove(photoBean);
                                         if (deleteNum == num) {
                                             if (deleteSuccessNum == deleteNum) {
                                                 Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功", Toast.LENGTH_SHORT).show();
                                             } else
                                                 Toast.makeText(EditActivity.this, deleteSuccessNum + "张图片删除成功，" + (num - deleteSuccessNum) + "张删除失败", Toast.LENGTH_SHORT).show();
-                                            editPhotos.remove(photoBean);
                                             getData();
                                             Intent intent = new Intent();
                                             intent.putExtra("dataChanged", true);

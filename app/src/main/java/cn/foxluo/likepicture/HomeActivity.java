@@ -109,8 +109,8 @@ public class HomeActivity extends AppCompatActivity {
                 }
                 intent.putExtra("groupPosition", groupPosition);
                 intent.putExtra("photoPosition", photoPosition);
-                startActivityForResult(intent,0);
-                overridePendingTransition(0,0);
+                startActivityForResult(intent, 0);
+                overridePendingTransition(0, 0);
             }
         });
         staggeredGridLayoutManager = new StaggeredGridLayoutManager(1, StaggeredGridLayoutManager.VERTICAL);
@@ -412,7 +412,7 @@ public class HomeActivity extends AppCompatActivity {
                 break;
             case R.id.similar:
                 if (isPRM()) {
-                    startActivity(new Intent(this, SimilarActivity.class));
+                    startActivityForResult(new Intent(this, SimilarActivity.class), 0);
                 } else {
                     ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 100);
                 }
@@ -440,8 +440,10 @@ public class HomeActivity extends AppCompatActivity {
                 super.run();
                 try {
                     for (PhotoBean photoBean : allPhotos) {
-                        if (TextUtils.isEmpty(photoBean.getHashCode()))
+                        if (TextUtils.isEmpty(photoBean.getHashCode())) {
+                            photoBean.setHashCode("On getting...");
                             photoBean.setHashCode(ImageHelper.getHashCode(photoBean));
+                        }
                     }
                 } catch (Exception e) {
                     e.printStackTrace();

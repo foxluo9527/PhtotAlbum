@@ -1,11 +1,14 @@
 package cn.foxluo.likepicture;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.StaggeredGridLayoutManager;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -20,6 +23,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
+import java.io.File;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,10 +51,13 @@ SimilarActivity extends AppCompatActivity {
     ExecutorService threadPool;
     ArrayList<ArrayList<Boolean>> photoChecks = new ArrayList<>();
     ArrayList<Boolean> opens = new ArrayList<>();
+    int deleteNum = 0;
+    int deleteSuccessNum = 0;
+    int num = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Window window=getWindow();
+        Window window = getWindow();
         window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -100,6 +108,55 @@ SimilarActivity extends AppCompatActivity {
             checkChanged();
         });
         getData();
+        button.setOnClickListener(v -> {
+            num = 0;
+            ArrayList<PhotoBean> deletePhotos = new ArrayList<>();
+            for (int j = 0; j < photoChecks.size(); j++) {
+                ArrayList<Boolean> checks = photoChecks.get(j);
+                ArrayList<PhotoBean> photoBeans = similarPhotoGroups.get(j);
+                for (int i = 0; i < checks.size(); i++) {
+                    Boolean b = checks.get(i);
+                    if (b) {
+                        num++;
+                        deletePhotos.add(photoBeans.get(i));
+                    }
+                }
+            }
+            if (num <= 0) {
+                return;
+            }
+            AlertDialog dialog = new AlertDialog.Builder(this)
+                    .setTitle("提示")
+                    .setMessage("确认删除所选的" + num + "张图片?")
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("确定", (dialog1, which) -> {
+                        deleteNum = 0;
+                        deleteSuccessNum = 0;
+                        for (PhotoBean photoBean : deletePhotos) {
+                            try {
+                                deleteNum++;
+                                File file = new File(photoBean.getPath());
+                                file.delete();
+                                deleteSuccessNum++;
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            } finally {
+                                allPhotos.remove(photoBean);
+                                if (deleteNum == num) {
+                                    if (deleteSuccessNum == deleteNum) {
+                                        Toast.makeText(SimilarActivity.this, deleteSuccessNum + "张图片删除成功", Toast.LENGTH_SHORT).show();
+                                    } else
+                                        Toast.makeText(SimilarActivity.this, deleteSuccessNum + "张图片删除成功，" + (num - deleteSuccessNum) + "张删除失败", Toast.LENGTH_SHORT).show();
+                                    getData();
+                                    Intent intent = new Intent();
+                                    intent.putExtra("dataChanged", true);
+                                    setResult(10002, intent);
+                                }
+                            }
+                        }
+                    }).create();
+            dialog.show();
+        });
     }
 
     private void checkChanged() {
@@ -129,9 +186,11 @@ SimilarActivity extends AppCompatActivity {
             public void run() {
                 doneHandler.sendEmptyMessage(0);
                 try {
+                    similarPhotoGroups.clear();
+                    photoChecks.clear();
                     for (int i = 0; i < allPhotos.size(); i++) {
                         if (i == 0) {
-                            dateGroupPhotos.add(new ArrayList<PhotoBean>());
+                            dateGroupPhotos.add(new ArrayList<>());
                             dateGroupPhotos.get(i).add(allPhotos.get(i));
                         } else {
                             long date = allPhotos.get(i).getTime();
@@ -165,8 +224,10 @@ SimilarActivity extends AppCompatActivity {
                             try {
                                 int dateGroupSize = dateGroupPhotos.size() - 1;
                                 for (PhotoBean photoBean : datePhotos) {
-                                    if (TextUtils.isEmpty(photoBean.getHashCode()))
+                                    if (TextUtils.isEmpty(photoBean.getHashCode())) {
+                                        photoBean.setHashCode("On getting...");
                                         photoBean.setHashCode(ImageHelper.getHashCode(photoBean));
+                                    }
                                 }
                                 for (int i = 0; i < datePhotos.size(); i++) {
                                     boolean flag = false;
@@ -277,7 +338,7 @@ SimilarActivity extends AppCompatActivity {
 
     private int distance(String s1, String s2) {
         int counter = 0;
-        if (s1==null||s2==null){
+        if (s1 == null || s2 == null) {
             return 100;
         }
         for (int k = 0; k < s1.length(); k++) {
